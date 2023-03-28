@@ -32,6 +32,12 @@ parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='enables CUDA training')
 parser.add_argument('--seed', type=int, default=1, metavar='S',
                     help='random seed (default: 1)')
+parser.add_argument('--restore-from-checkpoint', default=None,
+                    help='checkpoint file, only the last')
+parser.add_argument('--restore-from-epoch', type=int, default=-1,
+                    help='start from which epoch, used only if restore-from-checkpoint is specified')
+parser.add_argument('--skip-data-count', type=int, default=-1,
+                    help='skip the first n training data')
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
 
@@ -40,10 +46,17 @@ if args.cuda:
     torch.cuda.manual_seed(args.seed)
 
 all_left_img, all_right_img, all_left_disp, test_left_img, test_right_img, test_left_disp = lt.dataloader(args.datapath)
+# Hope that the variables would be in the same order after resuming from checkpoint
+# TODO: should add sorted() otherwise
+if args.skip_data_count > -1:
+    all_left_img  = all_left_img[args.skip_data_count:]
+    all_right_img = all_right_img[args.skip_data_count:]
+    all_left_disp = all_left_disp[args.skip_data_count:]
+
 
 TrainImgLoader = torch.utils.data.DataLoader(
          DA.myImageFloder(all_left_img,all_right_img,all_left_disp, True), 
-		 batch_size= 2, shuffle= True, num_workers= 2, drop_last=False)
+         batch_size= 2, shuffle= True, num_workers= 2, drop_last=False)
          #batch_size= 12, shuffle= True, num_workers= 8, drop_last=False)
 
 TestImgLoader = torch.utils.data.DataLoader(
@@ -63,6 +76,16 @@ if args.cuda:
     model.cuda()
 else:
     model.to('cpu')
+
+args.start_epoch = 0
+if args.restore_from_checkpoint is not None:
+    if args.restore_from_epoch == -1:
+        raise Error('Unknown epoch')
+    args.start_epoch = args.restore_from_epoch
+    print('Last checkpoint at epoch %d, resuming at next epoch' % (args.restore_from_epoch - 1))
+    print('Checkpoint File: %s' % args.restore_from_checkpoint)
+    # no need to consider previous batch_size since the checkpoint must have the number of epoches completed
+    args.loadmodel = args.restore_from_checkpoint
 
 if args.loadmodel is not None:
     print('Load pretrained model')
@@ -155,7 +178,8 @@ def adjust_learning_rate(optimizer, epoch):
 def main():
 
     start_full_time = time.time()
-    for epoch in range(0, args.epochs):
+    start_epoch     = 0 if args.restore_from_epoch == -1 else args.restore_from_epoch
+    for epoch in range(start_epoch, args.epochs):
         print('This is %d-th epoch' %(epoch))
         total_train_loss = 0
         adjust_learning_rate(optimizer,epoch)
