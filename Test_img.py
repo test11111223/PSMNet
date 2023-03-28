@@ -48,8 +48,9 @@ elif args.model == 'basic':
 else:
     print('no model')
 
-model = nn.DataParallel(model, device_ids=[0])
-model.cuda()
+if args.cuda:
+	model = nn.DataParallel(model, device_ids=[0])
+	model.cuda()
 
 if args.loadmodel is not None:
     print('load PSMNet')
