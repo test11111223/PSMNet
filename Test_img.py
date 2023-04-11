@@ -12,6 +12,7 @@ import math
 from models import *
 import cv2
 from PIL import Image
+import gc
 
 # 2012 data /media/jiaren/ImageNet/data_scene_flow_2012/testing/
 
@@ -34,6 +35,8 @@ parser.add_argument('--no-cuda', action='store_true', default=False,
                     help='enables CUDA training')
 parser.add_argument('--seed', type=int, default=1, metavar='S',
                     help='random seed (default: 1)')
+parser.add_argument('--outputimg', default='./Test_disparity.png',
+                    help='output disparity image file path (default: Test_disparity.png)')
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
 
@@ -49,8 +52,8 @@ else:
     print('no model')
 
 if args.cuda:
-	model = nn.DataParallel(model, device_ids=[0])
-	model.cuda()
+    model = nn.DataParallel(model, device_ids=[0])
+    model.cuda()
 
 if args.loadmodel is not None:
     print('load PSMNet')
@@ -119,13 +122,16 @@ def main():
         else:
             img = pred_disp
         
-        img = (img*256).astype('uint16')
+        img = img.astype('uint8')
+        #img = (img*256).astype('uint16')
         img = Image.fromarray(img)
-        img.save('Test_disparity.png')
+        img.save(args.outputimg)
 
 if __name__ == '__main__':
    main()
-
+   del model
+   torch.cuda.empty_cache() 
+   gc.collect()
 
 
 

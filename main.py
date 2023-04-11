@@ -20,6 +20,8 @@ parser.add_argument('--maxdisp', type=int ,default=192,
                     help='maxium disparity')
 parser.add_argument('--model', default='stackhourglass',
                     help='select model')
+parser.add_argument('--datatype', default='sf',
+                    help='datapath')
 parser.add_argument('--datapath', default='/media/jiaren/ImageNet/SceneFlowData/',
                     help='datapath')
 parser.add_argument('--epochs', type=int, default=10,
@@ -40,6 +42,9 @@ parser.add_argument('--skip-data-count', type=int, default=-1,
                     help='skip the first n training data')
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
+if args.datatype == 'in2k':
+    from dataloader import KITTILoader as DA
+    from dataloader import InStereo2kLoader as lt
 
 torch.manual_seed(args.seed)
 if args.cuda:
@@ -56,7 +61,8 @@ if args.skip_data_count > -1:
 
 TrainImgLoader = torch.utils.data.DataLoader(
          DA.myImageFloder(all_left_img,all_right_img,all_left_disp, True), 
-         batch_size= 2, shuffle= True, num_workers= 2, drop_last=False)
+         batch_size= 4, shuffle= True, num_workers= 4, drop_last=False) # 24 GB ram for 1x display card
+         #batch_size= 2, shuffle= True, num_workers= 2, drop_last=False) # 8 GB ram for 1x display card
          #batch_size= 12, shuffle= True, num_workers= 8, drop_last=False)
 
 TestImgLoader = torch.utils.data.DataLoader(
